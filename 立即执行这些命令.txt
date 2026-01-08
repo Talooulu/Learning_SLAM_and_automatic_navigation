@@ -1,0 +1,41 @@
+# 立即执行以下命令完成推送
+
+## 当前状态
+✅ 已从 Git 中移除大文件 car.dae（保留本地文件）
+✅ 已更新 .gitignore 文件
+
+## 现在执行：
+
+cd /home/talooulu/ROS2/Pure-tracking-slam-automatic-navigation-system
+
+# 1. 添加所有更改（包括 .gitignore 和文档）
+git add .
+
+# 2. 提交更改
+git commit -m "解决大文件问题：移除 car.dae 并更新 .gitignore
+
+- 从 Git 中移除超过 100MB 的 car.dae 文件
+- 更新 .gitignore 忽略所有 .dae 文件
+- 添加问题解决文档"
+
+# 3. 推送到 GitHub（这次应该能成功了）
+git push -u origin masters
+
+---
+
+## 如果还有错误
+
+如果推送时还提示大文件错误，可能需要清除 Git 历史中的大文件：
+
+```bash
+# 使用 git filter-branch 从历史中完全移除（高级操作）
+git filter-branch --force --index-filter \
+  "git rm --cached --ignore-unmatch 'src/su7_gazebo/**/*.dae'" \
+  --prune-empty --tag-name-filter cat -- --all
+
+# 强制推送（谨慎使用）
+git push -f origin masters
+```
+
+但通常第一步就够了！
+

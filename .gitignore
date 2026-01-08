@@ -31,6 +31,11 @@ __MACOSX/
 *.backup
 *.old
 
+# 大文件（超过 GitHub 100MB 限制）
+*.dae
+**/meshes/*.dae
+src/su7_gazebo/**/*.dae
+
 # 但保留这些重要文件
 !README.md
 !LICENSE
