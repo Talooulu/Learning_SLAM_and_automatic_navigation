@@ -47,15 +47,22 @@ def generate_launch_description():
     # ========================================================================
     # 第一步：定义基本参数（可以理解为"配置变量"）
     # ========================================================================
+    # 设置 Gazebo 模型路径（让 Gazebo 能找到 SU7 的 mesh 文件）
+    su7_model_dir = '/home/talooulu/ROS2/Pure-tracking-slam-automatic-navigation-system/src/su7_gazebo/gazebo_four_wheeled_vehicle/four_wheeled_vehicle_plugin/models'
+    os.environ['GAZEBO_MODEL_PATH'] = f"{os.environ.get('GAZEBO_MODEL_PATH', '')}:{su7_model_dir}"
     
+    # 设置 Gazebo 插件路径（让 Gazebo 能找到 SU7 的插件）
+    # 插件编译后会在 install/four_wheeled_vehicle/lib/four_wheeled_vehicle/ 目录下
+    su7_plugin_dir = '/home/talooulu/ROS2/Pure-tracking-slam-automatic-navigation-system/install/four_wheeled_vehicle/lib/four_wheeled_vehicle'
+    os.environ['GAZEBO_PLUGIN_PATH'] = f"{os.environ.get('GAZEBO_PLUGIN_PATH', '')}:{su7_plugin_dir}"
     # 机器人在Gazebo中的名字（可以自定义，比如改成'my_robot'）
-    robot_name_in_model = 'fishbot'
+    robot_name_in_model = 'XIAOMI-SU7'
     
     # 当前ROS2包的名字（这个文件所在的包）
     package_name = 'gazebo_modele' 
 
     # URDF文件名（URDF是描述机器人外观和结构的文件，类似"机器人的说明书"）
-    urdf_name = "model.urdf" 
+    su7_model_path = '/home/talooulu/ROS2/Pure-tracking-slam-automatic-navigation-system/src/su7_gazebo/gazebo_four_wheeled_vehicle/four_wheeled_vehicle_plugin/models/four_wheeled_vehicle/model_sensor.sdf'
    
     # 创建一个空的launch描述对象，后续会把所有要启动的节点添加进去
     ld = LaunchDescription()
@@ -68,9 +75,10 @@ def generate_launch_description():
     # 例如：/home/user/workspace/install/gazebo_modele/share/gazebo_modele
     pkg_share = FindPackageShare(package=package_name).find(package_name) 
     
-    # 拼接URDF文件的完整路径
-    # 例如：/home/user/.../gazebo_modele/urdf/model.urdf
-    urdf_model_path = os.path.join(pkg_share, f'urdf/{urdf_name}')
+    # 注意：SU7 使用 SDF 格式，不是 URDF，所以不需要 urdf_model_path
+    # 如果需要使用原来的 fishbot（URDF），取消下面的注释：
+    # urdf_name = "model.urdf"
+    # urdf_model_path = os.path.join(pkg_share, f'urdf/{urdf_name}')
     
     # 拼接Gazebo世界文件的完整路径（世界文件定义了仿真环境，比如房间、障碍物等）
     # 例如：/home/user/.../gazebo_modele/world/3d.world
@@ -104,8 +112,9 @@ def generate_launch_description():
         package='gazebo_ros',           # 包名：gazebo_ros（Gazebo的ROS接口包）
         executable='spawn_entity.py',    # 可执行文件：生成实体的Python脚本
         arguments=[
-            '-entity', robot_name_in_model,  # 实体名称：机器人在Gazebo中的名字（'fishbot'）
-            '-file', urdf_model_path         # URDF文件路径：机器人的描述文件
+            '-entity', robot_name_in_model,
+            '-file', su7_model_path,  # 使用 SDF 文件路径
+            '-x', '0.0', '-y', '0.0', '-z', '1.0'  # 初始位置（可选）
         ],
         output='screen'  # 输出到屏幕
     )
@@ -113,13 +122,14 @@ def generate_launch_description():
     # ------------------------------------------------------------------------
     # 节点3：发布机器人状态（Robot State Publisher）
     # ------------------------------------------------------------------------
-    # 这个节点读取URDF文件，发布机器人各个关节的TF变换
-    # TF变换：描述机器人各个部分之间的位置和姿态关系
-    # 例如：base_link（机器人本体）到left_wheel（左轮）的变换
+    # 注意：SU7 使用 SDF 格式，但 RViz 需要 URDF 来显示模型
+    # 所以使用一个简化的 URDF 文件用于 RViz 显示
+    su7_rviz_urdf_path = os.path.join(pkg_share, 'urdf/su7_rviz.urdf')
     start_robot_state_publisher_cmd = Node(
         package='robot_state_publisher',     # 包名：robot_state_publisher
         executable='robot_state_publisher',  # 可执行文件：机器人状态发布器
-        arguments=[urdf_model_path]          # 参数：URDF文件路径
+        arguments=[su7_rviz_urdf_path],     # 参数：用于 RViz 显示的简化 URDF 文件
+        name='robot_state_publisher'
     )
     
     # ------------------------------------------------------------------------
@@ -144,33 +154,70 @@ def generate_launch_description():
     # 作用：连接里程计坐标系和机器人脚部坐标系
     # 参数说明：x, y, z, roll, pitch, yaw, 父坐标系, 子坐标系
     # 这里都是0，表示两个坐标系重合（没有偏移和旋转）
-    fake_basel_cmd4 = Node(
-        package='tf2_ros',                    # 包名：TF2（ROS2的坐标变换库）
-        executable='static_transform_publisher', # 可执行文件：静态变换发布器
-        output='screen',
-        arguments=[
-            '0', '0', '0',                    # x, y, z 偏移（米）：0表示没有偏移
-            '0', '0', '0',                    # roll, pitch, yaw 旋转（弧度）：0表示没有旋转
-            'odom',                           # 父坐标系：里程计坐标系（基于轮子编码器的坐标系）
-            'base_footprint'                  # 子坐标系：机器人脚部坐标系（机器人接触地面的点）
-        ]
-    )
+    # fake_basel_cmd4 = Node(
+    #     package='tf2_ros',                    # 包名：TF2（ROS2的坐标变换库）
+    #     executable='static_transform_publisher', # 可执行文件：静态变换发布器
+    #     output='screen',
+    #     arguments=[
+    #         '0', '0', '0',                    # x, y, z 偏移（米）：0表示没有偏移
+    #         '0', '0', '0',                    # roll, pitch, yaw 旋转（弧度）：0表示没有旋转
+    #         'odom',                           # 父坐标系：里程计坐标系（基于轮子编码器的坐标系）
+    #         'base_footprint'                  # 子坐标系：机器人脚部坐标系（机器人接触地面的点）
+    #     ]
+    # )
     
     # 节点6：base_footprint → base_link 的变换
     # 作用：连接机器人脚部和机器人本体
     # z=0.1 表示机器人本体比脚部高0.1米（机器人有一定高度）
-    fake_basel_cmd5 = Node(
+    # fake_basel_cmd5 = Node(
+    #     package='tf2_ros',
+    #     executable='static_transform_publisher',
+    #     output='screen',
+    #     arguments=[
+    #         '0', '0', '0.1',                  # x, y, z：z=0.1表示向上偏移0.1米
+    #         '0', '0', '0',                    # roll, pitch, yaw：无旋转
+    #         'base_footprint',                  # 父坐标系：机器人脚部
+    #         'base_link'                        # 子坐标系：机器人本体（通常是机器人的中心）
+    #     ]
+    # )
+    # 添加新的：odom → base_link（直接连接）
+    fake_basel_cmd_odom_base = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         output='screen',
-        arguments=[
-            '0', '0', '0.1',                  # x, y, z：z=0.1表示向上偏移0.1米
-            '0', '0', '0',                    # roll, pitch, yaw：无旋转
-            'base_footprint',                  # 父坐标系：机器人脚部
-            'base_link'                        # 子坐标系：机器人本体（通常是机器人的中心）
-        ]
+        arguments=['0', '0', '0', '0', '0', '0', 'odom', 'base_link']
     )
     
+    # SU7 传感器 TF 发布器（用于 RViz 显示）
+    # 注意：这些位置需要与 SDF 文件中的 joint pose 保持一致
+    stf_lidar = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='stf_lidar3d',
+        arguments=['1.30', '0', '0.95', '0', '0', '0', 'base_link', 'lidar3d_link'],
+        output='screen'
+    )
+    stf_gps = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='stf_gps',
+        arguments=['-0.50', '0', '0.95', '0', '0', '0', 'base_link', 'gps_link'],
+        output='screen'
+    )
+    stf_imu = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='stf_imu',
+        arguments=['0', '0', '0.30', '0', '0', '0', 'base_link', 'imu_link'],
+        output='screen'
+    )
+    stf_camera = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='stf_camera',
+        arguments=['2.20', '0', '0.60', '0', '0', '0', 'base_link', 'camera_link'],
+        output='screen'
+    )
     # 节点7：map → odom 的变换
     # 作用：连接地图坐标系和里程计坐标系
     # 注意：这里设置为0，表示初始时两个坐标系重合
@@ -199,7 +246,8 @@ def generate_launch_description():
     # 在Gazebo中生成机器人模型（需要等Gazebo启动后才能执行）
     ld.add_action(spawn_entity_cmd)
     
-    # 发布机器人关节状态的TF变换
+    # 发布机器人状态的TF变换（用于 RViz 显示）
+    # 注意：使用简化的 URDF 文件，仅用于 RViz 可视化
     ld.add_action(start_robot_state_publisher_cmd)
     
     # 启动关节状态发布器GUI（可选，用于调试）
@@ -207,9 +255,16 @@ def generate_launch_description():
 
     # 发布静态TF变换（建立坐标系之间的连接）
     # 这些变换的顺序不重要，因为它们都是独立的
-    ld.add_action(fake_basel_cmd4)  # odom → base_footprint
-    ld.add_action(fake_basel_cmd5)  # base_footprint → base_link
+    # ld.add_action(fake_basel_cmd4)  # odom → base_footprint
+    # ld.add_action(fake_basel_cmd5)  # base_footprint → base_link
+    ld.add_action(fake_basel_cmd_odom_base)  # odom → base_link
     ld.add_action(fake_basel_cmd6)  # map → odom
+    
+    # SU7 传感器 TF（用于 RViz 显示）
+    ld.add_action(stf_lidar)
+    ld.add_action(stf_gps)
+    ld.add_action(stf_imu)
+    ld.add_action(stf_camera)
 
     # ========================================================================
     # 返回launch描述对象
