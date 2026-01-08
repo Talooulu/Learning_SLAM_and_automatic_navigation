@@ -1,0 +1,45 @@
+# 快速备份到 GitHub - 操作步骤
+
+## 你的项目已连接到 GitHub 仓库：
+https://github.com/Ming2zun/Pure-tracking-slam-automatic-navigation-system.git
+
+## 立即备份步骤：
+
+### 1. 进入项目目录
+cd /home/talooulu/ROS2/Pure-tracking-slam-automatic-navigation-system
+
+### 2. 查看当前状态（看看有哪些文件被修改了）
+git status
+
+### 3. 添加所有修改的文件（包括新建的 .gitignore）
+git add .
+
+### 4. 提交到本地仓库
+git commit -m "更新项目文档和配置文件
+
+- 添加项目架构详解文档
+- 添加节点关系图文档
+- 添加 .gitignore 文件
+- 完善 launch 文件注释"
+
+### 5. 推送到 GitHub
+git push
+
+### 6. 验证（在浏览器打开 GitHub 仓库查看是否更新成功）
+# 浏览器打开：https://github.com/Ming2zun/Pure-tracking-slam-automatic-navigation-system
+
+---
+
+## 以后日常备份流程（每次修改代码后）：
+
+1. git add .                    # 添加所有修改
+2. git commit -m "描述你的修改"   # 提交到本地
+3. git push                     # 推送到 GitHub
+
+就是这么简单！
+
+---
+
+## 如果需要查看详细说明：
+查看文件：GitHub备份管理指南.md
+
